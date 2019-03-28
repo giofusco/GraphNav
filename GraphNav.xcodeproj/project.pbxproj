@@ -25,6 +25,11 @@
 /* Begin PBXFileReference section */
 		3FAC3BDA224994E4003FCDE9 /* GraphNav */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = GraphNav; sourceTree = BUILT_PRODUCTS_DIR; };
 		3FAC3BDD224994E4003FCDE9 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		3FAC3BE822499E80003FCDE9 /* 4thfloor.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = 4thfloor.json; sourceTree = "<group>"; };
+		3FCD29EE224ADD0C0048B140 /* Graph.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Graph.hpp; sourceTree = "<group>"; };
+		3FCD29F0224AF2C90048B140 /* Maps */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Maps; sourceTree = "<group>"; };
+		3FCD29F1224AF2DA0048B140 /* maps */ = {isa = PBXFileReference; lastKnownFileType = folder; path = maps; sourceTree = "<group>"; };
+		3FCD29F2224AF36F0048B140 /* Utils */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Utils; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -43,6 +48,7 @@
 			children = (
 				3FAC3BDC224994E4003FCDE9 /* GraphNav */,
 				3FAC3BDB224994E4003FCDE9 /* Products */,
+				3FAC3BE422499516003FCDE9 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -57,9 +63,37 @@
 		3FAC3BDC224994E4003FCDE9 /* GraphNav */ = {
 			isa = PBXGroup;
 			children = (
+				3FCD29EF224AF2B60048B140 /* include */,
+				3FAC3BE722499E71003FCDE9 /* res */,
 				3FAC3BDD224994E4003FCDE9 /* main.cpp */,
 			);
 			path = GraphNav;
+			sourceTree = "<group>";
+		};
+		3FAC3BE422499516003FCDE9 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		3FAC3BE722499E71003FCDE9 /* res */ = {
+			isa = PBXGroup;
+			children = (
+				3FCD29F1224AF2DA0048B140 /* maps */,
+				3FAC3BE822499E80003FCDE9 /* 4thfloor.json */,
+			);
+			path = res;
+			sourceTree = "<group>";
+		};
+		3FCD29EF224AF2B60048B140 /* include */ = {
+			isa = PBXGroup;
+			children = (
+				3FCD29F2224AF36F0048B140 /* Utils */,
+				3FCD29F0224AF2C90048B140 /* Maps */,
+				3FCD29EE224ADD0C0048B140 /* Graph.hpp */,
+			);
+			path = include;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -241,6 +275,56 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = JHL9NP9688;
+				HEADER_SEARCH_PATHS = (
+					/usr/local/include/opencv4/,
+					/Users/gio/Documents/workspace/rapidjson/include/,
+					/Users/gio/Documents/workspace/GraphNav/GraphNav/include,
+				);
+				"LIBRARY_SEARCH_PATHS[arch=*]" = "/Users/gio/Documents/workspace/opencv-4.0.1/build/lib";
+				"OTHER_LDFLAGS[arch=*]" = (
+					"-lopencv_stitching",
+					"-lopencv_superres",
+					"-lopencv_videostab",
+					"-lopencv_photo",
+					"-lopencv_aruco",
+					"-lopencv_bgsegm",
+					"-lopencv_bioinspired",
+					"-lopencv_ccalib",
+					"-lopencv_dpm",
+					"-lopencv_face",
+					"-lopencv_fuzzy",
+					"-lopencv_img_hash",
+					"-lopencv_line_descriptor",
+					"-lopencv_optflow",
+					"-lopencv_reg",
+					"-lopencv_rgbd",
+					"-lopencv_saliency",
+					"-lopencv_stereo",
+					"-lopencv_structured_light",
+					"-lopencv_phase_unwrapping",
+					"-lopencv_surface_matching",
+					"-lopencv_tracking",
+					"-lopencv_datasets",
+					"-lopencv_text",
+					"-lopencv_dnn",
+					"-lopencv_plot",
+					"-lopencv_xfeatures2d",
+					"-lopencv_shape",
+					"-lopencv_video",
+					"-lopencv_ml",
+					"-lopencv_ximgproc",
+					"-lopencv_calib3d",
+					"-lopencv_features2d",
+					"-lopencv_highgui",
+					"-lopencv_videoio",
+					"-lopencv_flann",
+					"-lopencv_xobjdetect",
+					"-lopencv_imgcodecs",
+					"-lopencv_objdetect",
+					"-lopencv_xphoto",
+					"-lopencv_imgproc",
+					"-lopencv_core",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -250,6 +334,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = JHL9NP9688;
+				"HEADER_SEARCH_PATHS[arch=*]" = "";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
