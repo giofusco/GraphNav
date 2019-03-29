@@ -26,9 +26,7 @@ public:
     struct Edge{
         float length; // length of the edge in pixels in u,v coordinates
         float angleDeg; // orientation of the edge from source to destination
-        float a;  //line coefficients: ax + by = c
-        float b;
-        float c;
+        cv::Point3f lineCoeffs_cab;
     };
     
     struct Node{
@@ -46,6 +44,7 @@ public:
     Graph() { ; }
     Graph(std::string jsonFileName, std::shared_ptr<maps::MapManager> mapManager){
         rapidjson::Document document;
+        _mapManager = mapManager;
         std::ifstream infile(jsonFileName);
         std::string json((std::istreambuf_iterator<char>(infile)),
                          std::istreambuf_iterator<char>());
@@ -53,24 +52,75 @@ public:
         _parseGraphMatrices(document);
         _parseNodes(document);
         _computeLinesCoeffs();
-        _mapManager = mapManager;
+        
     }
     
     void _computeLinesCoeffs(){
         for (auto &n : _nodes){
-            cv::Point2f n1Pos = toIJ(n.second.positionUV);
+            cv::Point3f n1Pos(1, n.second.positionUV.x, n.second.positionUV.y);
             for (auto &e : _nodes[n.first].edges){
-                cv::Point2f n2Pos = toIJ(_nodes[e.first].positionUV);
+                cv::Point3f n2Pos(1, _nodes[e.first].positionUV.x, _nodes[e.first].positionUV.y);
+                e.second.lineCoeffs_cab = n1Pos.cross(n2Pos);
             }
         }
     }
+    
+    cv::Point2f snapUV2Graph(cv::Point2f uvpos, int floor, bool checkWalls = false){
+        int id = findClosestNodeId(uvpos, floor, checkWalls);
+        if (id > 0){
+            //find closest edge to uvpos
+            float minDist = 1e6;
+            float minId = -1;
+            for (auto& e : _nodes[id].edges){
+                float d = (uvpos.x * e.second.lineCoeffs_cab.y + uvpos.y * e.second.lineCoeffs_cab.z + e.second.lineCoeffs_cab.x) /
+                cv::sqrt(e.second.lineCoeffs_cab.y*e.second.lineCoeffs_cab.y + e.second.lineCoeffs_cab.z*e.second.lineCoeffs_cab.z);
+                if (d < minDist){
+                    minDist = d;
+                    minId = e.first;
+                }
+            }
+            if (minId > -1)
+                return projectPointToGraph(_nodes[id], _nodes[minId], uvpos);
+            else return uvpos;
+        }
+        else return uvpos;
+    }
+    
+    //adapted from http://www.alecjacobson.com/weblog/?p=1486
+    cv::Point2f projectPointToGraph(Node n1, Node n2, cv::Point2f pt){
+        cv::Point2f p1 = n1.positionUV;
+        cv::Point2f p2 = n2.positionUV;
+        // vector from p1 to p2
+        cv::Point2f diff = p2 - p1;
+        float diff_squared = diff.dot(diff);
+        if (diff_squared == 0)
+            return p1;
+        else{
+            //vector from A to p
+            cv::Point2f n1toPt = pt - p1;
+            //  from http://stackoverflow.com/questions/849211/
+            //  Consider the line extending the segment, parameterized as A + t (B - A)
+            //  We find projection of point p onto the line.
+            //  It falls where t = [(pt-n1) . (n2-n1)] / |n2-n1|^2
+            float t = n1toPt.dot(diff)/diff_squared;
+            if (t < 0.0)
+                //  "Before" p1 on the line, just return p1
+                return p1;
+            else if (t > 1.)
+                // "After" p2 on the line, just return p2
+                return p2;
+            else
+                return p1 + t * diff;
+        }
+    }
+    
     
     cv::Mat plotGraph(int floor, bool pause = false){
         // plot graph relative to the specified floor
         cv::Mat map = _mapManager->getWallsImageRGB();
         for (const auto& n : _nodes ){
             if (n.second.floor == floor)
-                cv::circle(map, n.second.positionUV, 3, getNodeColor(n.second.type));
+                cv::circle(map, _mapManager->uv2pixels(n.second.positionUV), 3, getNodeColor(n.second.type));
         }
         cv::imshow("Graph floor " + std::to_string(floor), map);
         if (pause)
@@ -78,8 +128,8 @@ public:
         return map;
     }
     
-    inline cv::Point toIJ(cv::Point uv){ //sets origin in lower left corner
-        return cv::Point(uv.x, _mapManager->getMapSizePixels().height - uv.y);
+    inline cv::Point2f toUVOrigin(cv::Point2f uv){ //sets origin in lower left corner
+        return cv::Point2f(uv.x, _mapManager->getMapSizePixels().height - uv.y);
     }
     
     cv::Scalar getNodeColor(NodeType type){
@@ -107,7 +157,7 @@ public:
         
         int id = findClosestNodeId(pt, floor, checkWalls);
         if (id > 0){
-            cv::circle(map, _nodes[id].positionUV, 3, cv::Scalar(0,255,255));
+            cv::circle(map, _mapManager->uv2pixels(_nodes[id].positionUV), 3, cv::Scalar(0,255,255));
             cv::imshow("Closest node", map);
             cv::waitKey(-1);
         }
@@ -130,7 +180,7 @@ public:
         float d;
         for (const auto& n : _nodes){
             if (n.second.floor == floor){
-                cv::Point diff = pos - n.second.positionUV;
+                cv::Point2f diff = pos - n.second.positionUV;
                 d = (diff.x*diff.x + diff.y*diff.y);
                 if (d < minDist){
                     minDist = d;
@@ -186,14 +236,15 @@ private:
             node.comments = it->value["comments"].GetString();
             
             const auto& pos = it->value["position"].GetArray();
-            node.positionUV = cv::Point2f(pos[0].GetFloat(), pos[1].GetFloat());
+            cv::Point2f tmp = _mapManager->pixels2uv(cv::Point2i(pos[1].GetFloat(), pos[0].GetFloat()));
+            node.positionUV = cv::Point2f(tmp.y, tmp.x);
             
             float* wi = _weights.ptr<float>(nodeId-1);
             float* ai = _angles.ptr<float>(nodeId-1);
             
             for (int j = 0; j < _weights.cols; j++){
                 if (wi[j] > 0){
-                    Edge e = { .length = wi[j], .angleDeg = ai[j]};
+                    Edge e = { .length = wi[j] * static_cast<float>(_mapManager->getScale(node.floor)), .angleDeg = ai[j]};
                     node.edges.insert({j+1, e});
                 }
             }

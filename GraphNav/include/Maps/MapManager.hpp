@@ -69,7 +69,8 @@ class MapManager{
             return label;
         }
     
-        inline double getScale() { return _maps.at(currentFloor).getScale();}
+        inline double getScale() { return _maps.at(currentFloor).getScale(); }
+        inline double getScale(int floor) { return _maps.at(floor).getScale(); } // TODO: check key exists
     
         bool isPathCrossingWalls(cv::Point2i startPt, cv::Point2i endPt){
             // iterate over pixels from startPt to endPT to check if walls are in the way of the path
