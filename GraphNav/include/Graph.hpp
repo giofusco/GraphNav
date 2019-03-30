@@ -57,33 +57,41 @@ public:
     
     void _computeLinesCoeffs(){
         for (auto &n : _nodes){
-            cv::Point3f n1Pos(1, n.second.positionUV.x, n.second.positionUV.y);
+            cv::Point3f n1Pos(1, n.second.positionUV.y, n.second.positionUV.x);
             for (auto &e : _nodes[n.first].edges){
-                cv::Point3f n2Pos(1, _nodes[e.first].positionUV.x, _nodes[e.first].positionUV.y);
+                cv::Point3f n2Pos(1, _nodes[e.first].positionUV.y, _nodes[e.first].positionUV.x);
                 e.second.lineCoeffs_cab = n1Pos.cross(n2Pos);
             }
         }
     }
     
+    // note: uvpos.y is the ascissa, .x the ordinate
     cv::Point2f snapUV2Graph(cv::Point2f uvpos, int floor, bool checkWalls = false){
-        int id = findClosestNodeId(uvpos, floor, checkWalls);
-        if (id > 0){
-            //find closest edge to uvpos
-            float minDist = 1e6;
-            float minId = -1;
-            for (auto& e : _nodes[id].edges){
-                float d = (uvpos.x * e.second.lineCoeffs_cab.y + uvpos.y * e.second.lineCoeffs_cab.z + e.second.lineCoeffs_cab.x) /
-                cv::sqrt(e.second.lineCoeffs_cab.y*e.second.lineCoeffs_cab.y + e.second.lineCoeffs_cab.z*e.second.lineCoeffs_cab.z);
-                if (d < minDist){
-                    minDist = d;
-                    minId = e.first;
+        float minDist = 1e6;
+        int id = -1;
+        int minId = -1;
+        cv::Point2f minpos;
+        for (auto& n : _nodes){
+            for (auto& e : n.second.edges){
+                cv::Point2f pt = projectPointToGraph(n.second, _nodes[e.first], uvpos);
+                if (!_mapManager->isPathCrossingWalls(_mapManager->uv2pixels(uvpos), _mapManager->uv2pixels(pt))){
+                    cv::Point2f diff = uvpos - pt;
+                    float d = (diff.x*diff.x + diff.y*diff.y);
+    //                float d = cv::abs((uvpos.y * e.second.lineCoeffs_cab.y + uvpos.x * e.second.lineCoeffs_cab.z + e.second.lineCoeffs_cab.x)) /
+    //                cv::sqrt(e.second.lineCoeffs_cab.y*e.second.lineCoeffs_cab.y + e.second.lineCoeffs_cab.z*e.second.lineCoeffs_cab.z);
+                    if (d < minDist){
+                        minDist = d;
+                        minId = e.first;
+                        id = n.first;
+                        minpos = pt;
+                    }
                 }
             }
-            if (minId > -1)
-                return projectPointToGraph(_nodes[id], _nodes[minId], uvpos);
-            else return uvpos;
         }
-        else return uvpos;
+        if (minId > -1 && id > -1)
+            return minpos;
+        else
+            return uvpos;
     }
     
     //adapted from http://www.alecjacobson.com/weblog/?p=1486
@@ -119,12 +127,14 @@ public:
         // plot graph relative to the specified floor
         cv::Mat map = _mapManager->getWallsImageRGB();
         for (const auto& n : _nodes ){
-            if (n.second.floor == floor)
-                cv::circle(map, _mapManager->uv2pixels(n.second.positionUV), 3, getNodeColor(n.second.type));
+            if (n.second.floor == floor){
+                cv::Point2i pt = _mapManager->uv2pixels(n.second.positionUV);
+                cv::circle(map, cv::Point2i(pt.y, pt.x), 3, getNodeColor(n.second.type));
+            }
         }
-        cv::imshow("Graph floor " + std::to_string(floor), map);
-        if (pause)
-            cv::waitKey(-1);
+//        cv::imshow("Graph floor " + std::to_string(floor), map);
+//        if (pause)
+//            cv::waitKey(-1);
         return map;
     }
     
@@ -149,18 +159,22 @@ public:
     void showClosestNodeToPoint(int floor, bool checkWalls = false){
         cv::Mat map = plotGraph(floor);
         cv::namedWindow("graph");
-        cv::Point pt;
+        cv::Point2i pt;
         cv::setMouseCallback( "graph", onMouse, &pt );
         
         cv::imshow("graph", map);
         cv::waitKey(0);
         
-        int id = findClosestNodeId(pt, floor, checkWalls);
-        if (id > 0){
-            cv::circle(map, _mapManager->uv2pixels(_nodes[id].positionUV), 3, cv::Scalar(0,255,255));
-            cv::imshow("Closest node", map);
-            cv::waitKey(-1);
-        }
+        cv::Point2f snap = snapUV2Graph(_mapManager->pixels2uv(pt), floor, false);
+        
+//        int id = findClosestNodeId(_mapManager->pixels2uv(pt), floor, checkWalls);
+//        if (id > 0){
+        cv::Point2i ptpx = _mapManager->uv2pixels(snap);
+        cv::circle(map, cv::Point2i(ptpx.y, ptpx.x), 3, cv::Scalar(0,255,255));
+        cv::imshow("graph", map);
+        cv::waitKey(-1);
+//        cv::destroyWindow("snapped position");
+        cv::destroyWindow("graph");
     }
     
     // for debugging
@@ -169,8 +183,8 @@ public:
         if( event != cv::EVENT_LBUTTONDOWN )
             return;
         cv::Point* p = (cv::Point*)ptr;
-        p->x = x;
-        p->y = y;
+        p->x = y;
+        p->y = x;
         std::cerr << x << "," << y << "\n";
     }
     
@@ -236,8 +250,8 @@ private:
             node.comments = it->value["comments"].GetString();
             
             const auto& pos = it->value["position"].GetArray();
-            cv::Point2f tmp = _mapManager->pixels2uv(cv::Point2i(pos[1].GetFloat(), pos[0].GetFloat()));
-            node.positionUV = cv::Point2f(tmp.y, tmp.x);
+            //cv::Point2f tmp = _mapManager->pixels2uv(cv::Point2i(pos[1].GetFloat(), pos[0].GetFloat()));
+            node.positionUV = _mapManager->pixels2uv(cv::Point2i(pos[1].GetFloat(), pos[0].GetFloat()));
             
             float* wi = _weights.ptr<float>(nodeId-1);
             float* ai = _angles.ptr<float>(nodeId-1);

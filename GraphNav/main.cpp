@@ -21,7 +21,8 @@ int main(int argc, const char * argv[]) {
     std::string mapFolder = "/Users/gio/Documents/workspace/GraphNav/GraphNav/res/maps/SKERI";
     mapManager->init(mapFolder, 4);
     navgraph::Graph navGraph(jsonfile, mapManager);
-    navGraph.plotGraph(4, true);
-    navGraph.showClosestNodeToPoint(4);
+   // navGraph.plotGraph(4, true);
+    while (1)
+        navGraph.showClosestNodeToPoint(4);
     return 0;
 }
